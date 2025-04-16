@@ -5,6 +5,11 @@ from tkinter import messagebox
 from PIL import Image,ImageTk
 import pymysql
 from pymysql import MySQLError
+import os
+
+#import mysql.connector
+
+
 from tkcalendar import DateEntry
 import cv2
 
@@ -287,11 +292,11 @@ class Student:
         reset_btn.grid(row=0, column=3, padx=5, pady=10, sticky=W)
 
         # take photo button
-        take_photo_btn = Button(btn_frame,  text="Take Pic", width=9,  font=("verdana", 12, "bold"), fg="white", bg="navyblue")
+        take_photo_btn = Button(btn_frame, command=self.generate_dataset, text="Take Pic", width=9,  font=("verdana", 12, "bold"), fg="white", bg="navyblue")
         take_photo_btn.grid(row=0, column=4, padx=5, pady=10, sticky=W)
 
         # update photo button
-        update_photo_btn = Button(btn_frame, text="Update Pic", width=9, font=("verdana", 12, "bold"), fg="white",  bg="navyblue")
+        update_photo_btn = Button(btn_frame,command=self.generate_dataset, text="Update Pic", width=9, font=("verdana", 12, "bold"), fg="white",  bg="navyblue")
         update_photo_btn.grid(row=0, column=5, padx=5, pady=10, sticky=W)
 
         #def add_data(self):
@@ -314,7 +319,7 @@ class Student:
         self.var_searchTX = StringVar()
         # combo box
         search_combo = ttk.Combobox(search_frame, textvariable=self.var_searchTX, width=12, font=("verdana", 12, "bold"), state="readonly")
-        search_combo["values"] = ("Select", "Roll-No")
+        search_combo["values"] = ("Select", "Regd-No")
         search_combo.current(0)
         search_combo.grid(row=0, column=1, padx=5, pady=15, sticky=W)
 
@@ -322,10 +327,10 @@ class Student:
         search_entry = ttk.Entry(search_frame, textvariable=self.var_search, width=12, font=("verdana", 12, "bold"))
         search_entry.grid(row=0, column=2, padx=5, pady=5, sticky=W)
 
-        search_btn = Button(search_frame,  text="Search", width=9,font=("verdana", 12, "bold"), fg="white", bg="navyblue")
+        search_btn = Button(search_frame, command=self.search_data, text="Search", width=9,font=("verdana", 12, "bold"), fg="white", bg="navyblue")
         search_btn.grid(row=0, column=3, padx=5, pady=10, sticky=W)
 
-        showAll_btn = Button(search_frame, text="Show All", width=8,font=("verdana", 12, "bold"), fg="white", bg="navyblue")
+        showAll_btn = Button(search_frame, command=self.fetch_data, text="Show All", width=8,font=("verdana", 12, "bold"), fg="white", bg="navyblue")
         showAll_btn.grid(row=0, column=4, padx=5, pady=10, sticky=W)
 
         # -----------------------------Table Frame-------------------------------------------------
@@ -560,8 +565,130 @@ class Student:
                 self.var_proctor.set(""),
                 self.var_radio1.set("")
 
+                # ===========================Search Data===================
+    def search_data(self):
+                    if self.var_search.get() == "" or self.var_searchTX.get() == "Select":
+                        messagebox.showerror("Error", "Select Combo option and enter entry box", parent=self.root)
+                    else:
+                        try:
+                            conn = pymysql.connect(
+                                user='root',
+                                password='root',
+                                host='localhost',
+                                database='face_recognition',
+                                port=3306
+                            )
+                            my_cursor = conn.cursor()
+                            sql = "SELECT Regd_no,Name,Dep,Course,batch,Sem,Divi,Gender,DOB,Mob,Address,Roll,Email,proctor,Photo FROM student where Regd_no='" + str(
+                                self.var_search.get()) + "'"
+                            my_cursor.execute(sql)
+                            # my_cursor.execute("select * from student where Roll_No= " +str(self.var_search.get())+" "+str(self.var_searchTX.get())+"")
+                            rows = my_cursor.fetchall()
+                            if len(rows) != 0:
+                                self.student_table.delete(*self.student_table.get_children())
+                                for i in rows:
+                                    self.student_table.insert("", END, values=i)
+                                if rows == None:
+                                    messagebox.showerror("Error", "Data Not Found", parent=self.root)
+                                    conn.commit()
+                            conn.close()
+                        except Exception as es:
+                            messagebox.showerror("Error", f"Due To :{str(es)}", parent=self.root)
 
-            # main class object
+    # =====================This part is related to Opencv Camera part=======================
+    # ==================================Generate Data set take image=========================
+    def generate_dataset(self):
+        if self.var_dep.get() == "Select Department" or self.var_course.get == "Select Course" or self.var_batch.get() == "Select Year" or self.var_semester.get() == "Select Semester" or self.var_std_regdno.get() == "" or self.var_std_name.get() == "" or self.var_div.get() == "" or self.var_roll.get() == "" or self.var_gender.get() == "" or self.var_dob.get() == "" or self.var_email.get() == "" or self.var_mob.get() == "" or self.var_address.get() == "" or self.var_proctor.get() == "":
+            messagebox.showerror("Error", "Please Fill All Fields are Required!", parent=self.root)
+        else:
+            try:
+                conn = pymysql.connect(
+                    user='root',
+                    password='root',
+                    host='localhost',
+                    database='face_recognition',
+                    port=3306
+                )
+                my_cursor = conn.cursor()
+                # Fetch all rows and calculate ID
+                my_cursor.execute("SELECT * FROM student")
+                myresult = my_cursor.fetchall()
+                id = len(myresult)  # Count of rows
+
+                # Debugging: Print Regd_no
+                print("Regd_no:", self.var_std_regdno.get())
+
+
+                my_cursor.execute(
+
+                    "update student set Name=%s,Dep=%s,Course=%s,Batch=%s,Sem=%s,Divi=%s,Gender=%s,DOB=%s,Mob=%s,Address=%s,Roll=%s,Email=%s,Proctor=%s,Photo=%s where Regd_no=%s",
+                    (
+                        self.var_std_name.get(),
+                        self.var_dep.get(),
+                        self.var_course.get(),
+                        self.var_batch.get(),
+                        self.var_semester.get(),
+                        self.var_div.get(),
+                        self.var_gender.get(),
+                        self.var_dob.get(),
+                        self.var_mob.get(),
+                        self.var_address.get(),
+                        self.var_roll.get(),
+                        self.var_email.get(),
+                        self.var_proctor.get(),
+                        self.var_radio1.get(),
+                        self.var_std_regdno.get()
+                    ))
+                conn.commit()
+                self.fetch_data()
+                self.reset_data()
+                conn.close()
+
+                # OpenCV: Ensure directory exists
+
+                if not os.path.exists("data_img"):
+                    os.makedirs("data_img")
+
+                # ====================part of opencv=======================
+
+                face_classifier = cv2.CascadeClassifier(
+                    r"C:\Users\manoj\PycharmProjects\pythonProject2\.venv\Lib\site-packages\cv2\data\haarcascade_frontalface_default.xml"
+                )
+
+
+
+                def face_croped(img):
+                    # conver gary sacle
+                    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                    faces = face_classifier.detectMultiScale(gray, 1.3, 5)
+                    # Scaling factor 1.3
+                    # Minimum naber 5
+                    for (x, y, w, h) in faces:
+                        face_croped = img[y:y + h, x:x + w]
+                        return face_croped
+
+                cap = cv2.VideoCapture(0)
+                img_id = 0
+                while True:
+                    ret, my_frame = cap.read()
+                    if face_croped(my_frame) is not None:
+                        img_id += 1
+                        face = cv2.resize(face_croped(my_frame), (200, 200))
+                        face = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
+                        file_path = "data_img/stdudent." + str(id) + "." + str(img_id) + ".jpg"
+                        cv2.imwrite(file_path, face)
+                        cv2.putText(face, str(img_id), (50, 50), cv2.FONT_HERSHEY_COMPLEX, 2, (0, 255, 0), 2)
+                        cv2.imshow("Capture Images", face)
+
+                    if cv2.waitKey(1) == 13 or int(img_id) == 100:
+                        break
+                cap.release()
+                cv2.destroyAllWindows()
+                messagebox.showinfo("Result", "Generating dataset completed!", parent=self.root)
+            except Exception as es:
+                messagebox.showerror("Error", f"Due to: {str(es)}", parent=self.root)
+
+                # main class object
 
 if __name__ == "__main__":
         root = Tk()
